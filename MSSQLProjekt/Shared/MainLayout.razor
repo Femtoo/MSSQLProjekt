@@ -1,0 +1,73 @@
+﻿@inherits LayoutComponentBase
+@inject NavigationManager NavigationManager
+<MudThemeProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+<PageTitle>MSSQLProjekt</PageTitle>
+
+<MudLayout>
+    <MudAppBar Color="Color.Primary" Fixed="false">
+        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="Menu" />
+        <MudSpacer />
+        <MudButton Variant="Variant.Filled" Color="Color.Info" Class="d-block" OnClick="Customer">Customers</MudButton>
+        <MudSpacer />
+        <MudButton Variant="Variant.Filled" Color="Color.Info" Class="d-block" OnClick="Parcels">Parcels</MudButton>
+        <MudSpacer />
+        <MudButton Variant="Variant.Filled" Color="Color.Info" Class="d-block" OnClick="Payments">Payments</MudButton>
+        <MudSpacer />
+        <MudButton Variant="Variant.Filled" Color="Color.Info" Class="d-block" OnClick="Lockers">Lockers</MudButton>
+        <MudSpacer />
+        <MudButton Variant="Variant.Filled" Color="Color.Info" Class="d-block" OnClick="Warehouses">Warehouses</MudButton>
+        <MudSpacer />
+        <MudButton Variant="Variant.Filled" Color="Color.Info" Class="d-block" OnClick="Workers">Workers</MudButton>
+        <MudSpacer />
+        <MudButton Variant="Variant.Filled" Color="Color.Info" Class="d-block" OnClick="Vehicles">Vehicles</MudButton>
+        <MudSpacer />
+    </MudAppBar>
+
+    <MudMainContent>
+        @Body
+    </MudMainContent>
+</MudLayout>
+
+@code {
+
+    private void Menu()
+    {
+        NavigationManager.NavigateTo("");
+    }
+
+    private void Customer()
+    {
+        NavigationManager.NavigateTo("/Customer/list");
+    }
+    private void Parcels()
+    {
+        NavigationManager.NavigateTo("/Parcel/list");
+    }
+
+    private void Payments()
+    {
+        NavigationManager.NavigateTo("/Payments/list");
+    }
+
+    private void Lockers()
+    {
+        NavigationManager.NavigateTo("/Lockers/list");
+    }
+
+    private void Warehouses()
+    {
+        NavigationManager.NavigateTo("/Warehouses/list");
+    }
+
+    private void Workers()
+    {
+        NavigationManager.NavigateTo("/Workers/list");
+    }
+
+    private void Vehicles()
+    {
+        NavigationManager.NavigateTo("/Vehicles/list");
+    }
+}

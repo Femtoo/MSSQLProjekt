@@ -1,0 +1,107 @@
+﻿@page "/Lockers/list"
+@using System.Net.Http.Json
+@using DataAccess.IRepository;
+@using Models;
+@inject NavigationManager NavigationManager
+@inject IUnitOfWork _db
+
+<MudDataGrid T="Locker" MultiSelection="true" Items="@Lockers" SortMode="SortMode.Multiple" Filterable="true" QuickFilter="@_quickFilter"
+             Hideable="true">
+    <ToolBarContent>
+        <MudText Typo="Typo.h6">Lockers List</MudText>
+        <MudSpacer />
+        <MudTextField @bind-Value="_searchString" Placeholder="Search" Adornment="Adornment.Start" Immediate="true"
+                      AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="d-block" OnClick="ToggleOpen">Add Locker</MudButton>
+    </ToolBarContent>
+    <Columns>
+        <SelectColumn T="Locker" />
+        <PropertyColumn Property="x => x.Id" Title="Id"/>
+        <PropertyColumn Property="x => x.Name" />
+        <PropertyColumn Property="x => x.Address" />
+        <PropertyColumn Property="x => x.WarehouseId" />
+        <PropertyColumn Property="x => x.Warehouse.Name" />
+    </Columns>
+    <PagerContent>
+        <MudDataGridPager T="Locker" />
+    </PagerContent>
+</MudDataGrid>
+
+<MudPopover Open="@_isOpen" Fixed="true" Class="d-inline-block pa-10" AnchorOrigin="Origin.CenterCenter" TransformOrigin="@Origin.BottomCenter">
+    <div class="d-block pa-2">
+        <MudTextField @bind-Value="locker.Name" Label="Locker Name" Variant="Variant.Outlined" Class="d-block"></MudTextField>
+    </div>
+    <div class="d-block pa-2">
+        <MudTextField @bind-Value="locker.Address" Label="Locker Address" Variant="Variant.Outlined" Class="d-block"></MudTextField>
+    </div>
+    <MudSelect @bind-Value="locker.WarehouseId" Label="Warehouse" AdornmentColor="Color.Secondary">
+        @foreach (var item in Warehouses)
+        {
+            <MudSelectItem Value="@item.Id">@item.Name</MudSelectItem>
+        }
+    </MudSelect>
+    <div class="button-box col-lg-12">
+        <div class="d-block pa-2">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="d-block" OnClick="OnSubmit">Add New Locker</MudButton>
+        </div>
+        <div class="d-block pa-2">
+            <MudButton Variant="Variant.Filled" Color="Color.Error" Class="d-block" OnClick="ToggleOpen">Close</MudButton>
+        </div>
+    </div>
+    <div class="text-danger">
+        <span>@errorMessage</span>
+    </div>
+</MudPopover>
+
+@code {
+    private IEnumerable<Locker> Lockers = new List<Locker>();
+    private IEnumerable<Warehouse> Warehouses = new List<Warehouse>();
+    Locker locker = new Locker();
+    private string _searchString;
+    private List<string> _events = new();
+    public bool _isOpen;
+    private string errorMessage = string.Empty;
+
+    public void ToggleOpen()
+    {
+        if (_isOpen)
+            _isOpen = false;
+        else
+            _isOpen = true;
+    }
+
+    // quick filter - filter gobally across multiple columns with the same input
+    private Func<Locker, bool> _quickFilter => x =>
+    {
+        if (string.IsNullOrWhiteSpace(_searchString))
+            return true;
+
+        if (x.Name.Contains(_searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (x.Address.Contains(_searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if ($"{x.Id} {x.WarehouseId}".Contains(_searchString))
+            return true;
+
+        return false;
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        Lockers = await _db.LockerRepository.GetAll(includeProperties:"Warehouse");
+        Warehouses = await _db.WarehouseRepository.GetAll();
+    }
+
+    async Task OnSubmit()
+    {
+        _db.LockerRepository.Add(locker);
+        await _db.LockerRepository.SaveChangesAsync();
+
+        Lockers = await _db.LockerRepository.GetAll();
+
+        ToggleOpen();
+        locker = new Locker();
+    }
+}

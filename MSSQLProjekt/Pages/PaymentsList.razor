@@ -1,0 +1,104 @@
+﻿@page "/Payments/list"
+@using System.Net.Http.Json
+@using DataAccess.IRepository;
+@using Models;
+@inject NavigationManager NavigationManager
+@inject IUnitOfWork _db
+
+<MudDataGrid T="Payment" MultiSelection="true" Items="@Payments" SortMode="SortMode.Multiple" Filterable="true" QuickFilter="@_quickFilter"
+             Hideable="true">
+    <ToolBarContent>
+        <MudText Typo="Typo.h6">Payments List</MudText>
+        <MudSpacer />
+        <MudTextField @bind-Value="_searchString" Placeholder="Search" Adornment="Adornment.Start" Immediate="true"
+                      AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="d-block" OnClick="ToggleOpen">Add Payment</MudButton>
+    </ToolBarContent>
+    <Columns>
+        <SelectColumn T="Payment" />
+        <PropertyColumn Property="x => x.Id" Title="Id" />
+        <PropertyColumn Property="x => x.Price"/>
+        <PropertyColumn Property="x => x.ParcelId" />
+    </Columns>
+    <PagerContent>
+        <MudDataGridPager T="Payment" />
+    </PagerContent>
+</MudDataGrid>
+
+<MudPopover Open="@_isOpen" Fixed="true" Class="d-inline-block pa-10" AnchorOrigin="Origin.CenterCenter" TransformOrigin="@Origin.BottomCenter">
+    <div class="d-block pa-2">
+        <MudTextField @bind-Value="payment.Price" Label="Payment Price" Variant="Variant.Outlined" Class="d-block"></MudTextField>
+    </div>
+    <MudSelect @bind-Value="payment.ParcelId" Label="Parcel ID" AdornmentColor="Color.Secondary">
+        @foreach (var item in Parcels)
+        {
+            <MudSelectItem Value="@item.Id">@item.Id</MudSelectItem>
+        }
+    </MudSelect>
+    <div class="button-box col-lg-12">
+        <div class="d-block pa-2">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="d-block" OnClick="OnSubmit">Add New Payment</MudButton>
+        </div>
+        <div class="d-block pa-2">
+            <MudButton Variant="Variant.Filled" Color="Color.Error" Class="d-block" OnClick="ToggleOpen">Close</MudButton>
+        </div>
+    </div>
+    <div class="text-danger">
+        <span>@errorMessage</span>
+    </div>
+</MudPopover>
+
+@code {
+    private IEnumerable<Payment> Payments = new List<Payment>();
+    private IEnumerable<Parcel> Parcels = new List<Parcel>();
+    private string _searchString;
+    private List<string> _events = new();
+    Payment payment = new Payment();
+    public bool _isOpen;
+    private string errorMessage = string.Empty;
+
+    public void ToggleOpen()
+    {
+        if (_isOpen)
+            _isOpen = false;
+        else
+            _isOpen = true;
+    }
+
+    // quick filter - filter gobally across multiple columns with the same input
+    private Func<Payment, bool> _quickFilter => x =>
+    {
+        if (string.IsNullOrWhiteSpace(_searchString))
+            return true;
+
+        if ($"{x.Id} {x.Price} {x.ParcelId}".Contains(_searchString))
+            return true;
+
+        return false;
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        Payments = await _db.PaymentRepository.GetAll();
+        Parcels = await _db.ParcelRepository.GetAll();
+        Parcels = Parcels.Where(u => u.State != "PAID");
+    }
+
+    async Task OnSubmit()
+    {
+        _db.PaymentRepository.Add(payment);
+        await _db.PaymentRepository.SaveChangesAsync();
+
+        var obj = await _db.ParcelRepository.GetFirstOrDefault(u => u.Id == payment.ParcelId);
+        obj.State = "PAID";
+        obj.Received = DateTime.Now;
+
+        _db.ParcelRepository.Update(obj);
+        await _db.ParcelRepository.SaveChangesAsync();
+        Payments = await _db.PaymentRepository.GetAll();
+
+        ToggleOpen();
+        payment = new Payment();
+    }
+
+}

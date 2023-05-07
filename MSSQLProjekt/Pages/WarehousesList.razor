@@ -1,0 +1,97 @@
+﻿@page "/Warehouses/list"
+@using System.Net.Http.Json
+@using DataAccess.IRepository;
+@using Models;
+@inject NavigationManager NavigationManager
+@inject IUnitOfWork _db
+
+<MudDataGrid T="Warehouse" MultiSelection="true" Items="@Warehouses" SortMode="SortMode.Multiple" Filterable="true" QuickFilter="@_quickFilter"
+             Hideable="true">
+    <ToolBarContent>
+        <MudText Typo="Typo.h6">Warehouses List</MudText>
+        <MudSpacer />
+        <MudTextField @bind-Value="_searchString" Placeholder="Search" Adornment="Adornment.Start" Immediate="true"
+                      AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="d-block" OnClick="ToggleOpen">Add Warehouse</MudButton>
+    </ToolBarContent>
+    <Columns>
+        <SelectColumn T="Warehouse" />
+        <PropertyColumn Property="x => x.Id" Title="Id" />
+        <PropertyColumn Property="x => x.Name" />
+        <PropertyColumn Property="x => x.Address" />
+    </Columns>
+    <PagerContent>
+        <MudDataGridPager T="Warehouse" />
+    </PagerContent>
+</MudDataGrid>
+
+<MudPopover Open="@_isOpen" Fixed="true" Class="d-inline-block pa-10" AnchorOrigin="Origin.CenterCenter" TransformOrigin="@Origin.BottomCenter">
+    <div class="d-block pa-2">
+        <MudTextField @bind-Value="warehouse.Name" Label="Warehouse Name" Variant="Variant.Outlined" Class="d-block"></MudTextField>
+    </div>
+    <div class="d-block pa-2">
+        <MudTextField @bind-Value="warehouse.Address" Label="Warehouse Address" Variant="Variant.Outlined" Class="d-block"></MudTextField>
+    </div>
+    <div class="button-box col-lg-12">
+        <div class="d-block pa-2">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="d-block" OnClick="OnSubmit">Add New Warehouse</MudButton>
+        </div>
+        <div class="d-block pa-2">
+            <MudButton Variant="Variant.Filled" Color="Color.Error" Class="d-block" OnClick="ToggleOpen">Close</MudButton>
+        </div>
+    </div>
+    <div class="text-danger">
+        <span>@errorMessage</span>
+    </div>
+</MudPopover>
+
+@code {
+    private IEnumerable<Warehouse> Warehouses = new List<Warehouse>();
+    private string _searchString;
+    private List<string> _events = new();
+    Warehouse warehouse = new Warehouse();
+    public bool _isOpen;
+    private string errorMessage = string.Empty;
+
+    public void ToggleOpen()
+    {
+        if (_isOpen)
+            _isOpen = false;
+        else
+            _isOpen = true;
+    }
+
+    // quick filter - filter gobally across multiple columns with the same input
+    private Func<Warehouse, bool> _quickFilter => x =>
+    {
+        if (string.IsNullOrWhiteSpace(_searchString))
+            return true;
+
+        if (x.Name.Contains(_searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (x.Address.Contains(_searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if ($"{x.Id}".Contains(_searchString))
+            return true;
+
+        return false;
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        Warehouses = await _db.WarehouseRepository.GetAll();
+    }
+
+    async Task OnSubmit()
+    {
+        _db.WarehouseRepository.Add(warehouse);
+        await _db.WarehouseRepository.SaveChangesAsync();
+
+        Warehouses = await _db.WarehouseRepository.GetAll();
+
+        ToggleOpen();
+        warehouse = new Warehouse();
+    }
+}

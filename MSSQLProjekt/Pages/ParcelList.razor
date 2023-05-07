@@ -1,0 +1,161 @@
+﻿@page "/Parcel/list"
+@using System.Net.Http.Json
+@using DataAccess.IRepository;
+@using Models;
+@inject NavigationManager NavigationManager
+@inject IUnitOfWork _db
+
+<MudDataGrid T="Parcel" MultiSelection="true" Items="@Parcels" SortMode="SortMode.Multiple" Filterable="true" QuickFilter="@_quickFilter"
+             Hideable="true">
+    <ToolBarContent>
+        <MudText Typo="Typo.h6">Periodic Elements</MudText>
+        <MudSpacer />
+        <MudTextField @bind-Value="_searchString" Placeholder="Search" Adornment="Adornment.Start" Immediate="true"
+                      AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="d-block" OnClick="ToggleOpen">Add Parcel</MudButton>
+    </ToolBarContent>
+    <Columns>
+        <SelectColumn T="Parcel" />
+        <PropertyColumn Property="x => x.Id"/>
+        <PropertyColumn Property="x => x.Name"/>
+        <PropertyColumn Property="x => x.FromLockerId" />
+        <PropertyColumn Property="x => x.ToLockerId" />
+        <PropertyColumn Property="x => x.SenderId" />
+        <PropertyColumn Property="x => x.ReceiverId" />
+        <PropertyColumn Property="x => x.State" />
+        <PropertyColumn Property="x => x.Payment.Price" Title="Price" />
+        <PropertyColumn Property="x => x.Posted"/>
+        <PropertyColumn Property="x => x.Received"/>
+    </Columns>
+    <PagerContent>
+        <MudDataGridPager T="Parcel" />
+    </PagerContent>
+</MudDataGrid>
+
+<MudPopover Open="@_isOpen" Fixed="true" Class="d-inline-block pa-10" AnchorOrigin="Origin.CenterCenter" TransformOrigin="@Origin.BottomCenter">
+    <div class="d-block pa-2">
+        <MudTextField @bind-Value="parcel.Name" Label="Parcel Name" Variant="Variant.Outlined" Class="d-block"></MudTextField>
+    </div>
+    <MudSelect @bind-Value="parcel.FromLockerId" Label="From Locker" AdornmentColor="Color.Secondary">
+        @foreach (var item in Lockers)
+        {
+            <MudSelectItem Value="@item.Id">@item.Name @item.Address</MudSelectItem>
+        }
+    </MudSelect>
+    <MudSelect @bind-Value="parcel.ToLockerId" Label="To Locker" AdornmentColor="Color.Secondary">
+        @foreach (var item in Lockers)
+        {
+            <MudSelectItem Value="@item.Id">@item.Name @item.Address</MudSelectItem>
+        }
+    </MudSelect>
+    <MudSelect @bind-Value="parcel.SenderId" Label="Sender" AdornmentColor="Color.Secondary">
+        @foreach (var item in Customers)
+        {
+            <MudSelectItem Value="@item.Id">@item.Id</MudSelectItem>
+        }
+    </MudSelect>
+    <MudSelect @bind-Value="parcel.ReceiverId" Label="Receiver" AdornmentColor="Color.Secondary">
+        @foreach (var item in Customers)
+        {
+            <MudSelectItem Value="@item.Id">@item.Id</MudSelectItem>
+        }
+    </MudSelect>
+    <MudSelect @bind-Value="parcel.WorkerId" Label="Worker" AdornmentColor="Color.Secondary">
+        @foreach (var item in Workers)
+        {
+            <MudSelectItem Value="@item.Id">@item.Id</MudSelectItem>
+        }
+    </MudSelect>
+    <div class="d-block pa-2">
+        <MudTextField @bind-Value="parcel.Posted" Label="Posted" Variant="Variant.Outlined" Class="d-block"></MudTextField>
+    </div>
+    <div class="button-box col-lg-12">
+        <div class="d-block pa-2">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="d-block" OnClick="OnSubmit">Add New Parcel</MudButton>
+        </div>
+        <div class="d-block pa-2">
+            <MudButton Variant="Variant.Filled" Color="Color.Error" Class="d-block" OnClick="ToggleOpen">Close</MudButton>
+        </div>
+    </div>
+    <div class="text-danger">
+        <span>@errorMessage</span>
+    </div>
+</MudPopover>
+
+@code {
+    private IEnumerable<Parcel> Parcels = new List<Parcel>();
+    private IEnumerable<Locker> Lockers = new List<Locker>();
+    private IEnumerable<Customer> Customers = new List<Customer>();
+    private IEnumerable<Worker> Workers = new List<Worker>();
+    private string _searchString;
+    private List<string> _events = new();
+    ParcelDTO parcel = new ParcelDTO();
+    public bool _isOpen;
+    private string errorMessage = string.Empty;
+
+    public void ToggleOpen()
+    {
+        if (_isOpen)
+            _isOpen = false;
+        else
+            _isOpen = true;
+    }
+
+    // quick filter - filter gobally across multiple columns with the same input
+    private Func<Parcel, bool> _quickFilter => x =>
+    {
+        if (string.IsNullOrWhiteSpace(_searchString))
+            return true;
+
+        if (x.Name.Contains(_searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (x.State.Contains(_searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (x.State.Contains(_searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if ($"{x.Id} {x.FromLockerId} {x.ToLockerId} {x.SenderId} {x.ReceiverId}".Contains(_searchString))
+            return true;
+
+        return false;
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        Parcels = await _db.ParcelRepository.GetAll(null, "Payment");
+        foreach(var item in Parcels)
+        {
+            if(item.Payment==null)
+            {
+                item.Payment = new Payment();
+            }
+        }
+        Lockers = await _db.LockerRepository.GetAll();
+        Workers = await _db.WorkerRepository.GetAll();
+        Customers = await _db.CustomerRepository.GetAll();
+    }
+
+    async Task OnSubmit()
+    {
+        Parcel obj = new Parcel
+        {
+            Name = parcel.Name,
+            State = "UNPAID",
+            FromLockerId = parcel.FromLockerId,
+            ToLockerId = parcel.ToLockerId,
+            SenderId = parcel.SenderId,
+            ReceiverId = parcel.ReceiverId,
+            WorkerId = parcel.WorkerId,
+            Posted = parcel.Posted
+        };
+        _db.ParcelRepository.Add(obj);
+        await _db.ParcelRepository.SaveChangesAsync();
+
+        Parcels = await _db.ParcelRepository.GetAll();
+
+        ToggleOpen();
+        parcel = new ParcelDTO();
+    }
+}

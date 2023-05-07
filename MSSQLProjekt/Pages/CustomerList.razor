@@ -1,0 +1,97 @@
+﻿@page "/Customer/list"
+@using DataAccess.IRepository;
+@using Models;
+@inject NavigationManager NavigationManager
+@inject IUnitOfWork _db
+
+<MudDataGrid T="Customer" MultiSelection="true" Items="@Customers" SortMode="SortMode.Multiple" Filterable="true" QuickFilter="@_quickFilter"
+             Hideable="true">
+    <ToolBarContent>
+        <MudText Typo="Typo.h6">Customers List</MudText>
+        <MudSpacer />
+        <MudTextField @bind-Value="_searchString" Placeholder="Search" Adornment="Adornment.Start" Immediate="true"
+                      AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="d-block" OnClick="ToggleOpen">Add Customer</MudButton>
+    </ToolBarContent>
+    <Columns>
+        <SelectColumn T="Customer" />
+        <PropertyColumn Property="x => x.Id" Title="Id" />
+        <PropertyColumn Property="x => x.Name" />
+        <PropertyColumn Property="x => x.Surename" />
+    </Columns>
+    <PagerContent>
+        <MudDataGridPager T="Customer" />
+    </PagerContent>
+</MudDataGrid>
+
+<MudPopover Open="@_isOpen" Fixed="true" Class="d-inline-block pa-10" AnchorOrigin="@Origin.BottomCenter" TransformOrigin="@Origin.BottomCenter">
+    <div class="d-block pa-2">
+        <MudTextField @bind-Value="customer.Name" Label="Customer Name" Variant="Variant.Outlined" Class="d-block"></MudTextField>
+    </div>
+    <div class="d-block pa-2">
+        <MudTextField @bind-Value="customer.Surename" Label="Customer Surename" Variant="Variant.Outlined" Class="d-block"></MudTextField>
+    </div>
+    <div class="button-box col-lg-12">
+        <div class="d-block pa-2">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="d-block" OnClick="OnSubmit">Add New Customer</MudButton>
+        </div>
+        <div class="d-block pa-2">
+            <MudButton Variant="Variant.Filled" Color="Color.Error" Class="d-block" OnClick="ToggleOpen">Close</MudButton>
+        </div>
+    </div>
+    <div class="text-danger">
+        <span>@errorMessage</span>
+    </div>
+</MudPopover>
+
+@code {
+    private IEnumerable<Customer> Customers = new List<Customer>();
+    Customer customer = new Customer();
+    private string _searchString;
+    private List<string> _events = new();
+    public bool _isOpen;
+    private string errorMessage = string.Empty;
+
+    public void ToggleOpen()
+    {
+        if (_isOpen)
+            _isOpen = false;
+        else
+            _isOpen = true;
+    }
+    // custom sort by name length
+
+    // quick filter - filter gobally across multiple columns with the same input
+    private Func<Customer, bool> _quickFilter => x =>
+    {
+        if (string.IsNullOrWhiteSpace(_searchString))
+            return true;
+
+        if (x.Name.Contains(_searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (x.Surename.Contains(_searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if ($"{x.Id}".Contains(_searchString))
+            return true;
+
+        return false;
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        Customers = await _db.CustomerRepository.GetAll();
+    }
+
+    async Task OnSubmit()
+    {
+        _db.CustomerRepository.Add(customer);
+        await _db.CustomerRepository.SaveChangesAsync();
+
+        Customers = await _db.CustomerRepository.GetAll();
+
+        ToggleOpen();
+        customer = new Customer();
+    }
+}
